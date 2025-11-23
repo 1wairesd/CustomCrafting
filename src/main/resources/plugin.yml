@@ -3,3 +3,33 @@ version: '${version}'
 main: be.razerstorm.customcrafting.CustomCrafting
 api-version: "1.13"
 authors: [ RazerStorm ]
+
+commands:
+  customcrafting:
+    description: Main command for CustomCrafting plugin
+    usage: /<command> [subcommand] [args]
+    aliases: [cc]
+    permission: customcrafting.command
+
+permissions:
+  customcrafting.command:
+    description: Access to CustomCrafting commands
+    default: op
+  customcrafting.command.create:
+    description: Create new recipes
+    default: op
+  customcrafting.command.edit:
+    description: Edit existing recipes
+    default: op
+  customcrafting.command.delete:
+    description: Delete recipes
+    default: op
+  customcrafting.command.list:
+    description: List all recipes
+    default: op
+  customcrafting.command.recipes:
+    description: View recipe details
+    default: op
+  customcrafting.command.reload:
+    description: Reload plugin configuration
+    default: op

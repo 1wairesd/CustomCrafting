@@ -1,0 +1,101 @@
+# CustomCrafting Messages Configuration
+# Use & for color codes
+# Color scheme: &b (aqua/cyan) for titles, &3 (dark aqua) for highlights, &7 (gray) for descriptions
+
+# General Messages
+prefix: "&8[&bCustomCrafting&8]&r"
+no-permission: "&cYou don't have permission to use this command!"
+only-players: "&cOnly players can use this command!"
+reload-success: "&aConfiguration reloaded successfully!"
+
+# Command Messages
+commands:
+  help:
+    - "&3/cc <subcommand> <arg>..."
+    - "&b/cc create <type> <name> [args]"
+    - "&b/cc edit <name>"
+    - "&b/cc delete <name>"
+    - "&b/cc list"
+    - "&b/cc recipes <name>"
+    - "&b/cc reload"
+  
+  create:
+    usage: "&cUsage: /cc create <type> <name> [args]"
+    invalid-type: "&cInvalid recipe type! Use: CRAFTING or FURNACE"
+    already-exists: "&cRecipe already exists!"
+    invalid-args: "&cInvalid arguments!"
+  
+  edit:
+    usage: "&cUsage: /cc edit <name>"
+    not-found: "&cRecipe not found!"
+  
+  delete:
+    usage: "&cUsage: /cc delete <name>"
+    success: "&aRecipe deleted!"
+    not-found: "&cRecipe not found!"
+  
+  list:
+    header: "&bRecipes (&3{count}&b):"
+    item: "&7- &f{name}"
+    empty: "&cNo recipes found!"
+  
+  recipes:
+    usage: "&cUsage: /cc recipes <name>"
+    not-found: "&cRecipe not found!"
+
+# Recipe Management Messages
+recipe:
+  created: "&aSuccessfully created recipe &3{name}&a!"
+  edited: "&aSuccessfully edited recipe &3{name}&a!"
+  loading: "Loading recipe {name}"
+  invalid: "Recipe {name} is invalid!"
+  loaded: "Loaded {count} recipes in {time}ms!"
+
+# GUI Titles
+gui:
+  creating: "&3Creating recipe: &b{name}"
+  editing: "&3Editing recipe: &b{name}"
+  viewing: "&3Viewing recipe: &b{name}"
+
+# GUI Items
+items:
+  submit:
+    valid:
+      name: "&aSubmit"
+    invalid:
+      name: "&cSubmit"
+      lore: "&7The recipe is invalid!"
+  
+  invalid-slot:
+    name: "&cInvalid slot"
+    lore: "&7We can't change the fuel of the recipe :("
+  
+  recipe-info:
+    name: "&bRecipe Information"
+    lore:
+      - "&7Name: &f{name}"
+      - "&7Type: &f{type}"
+      - ""
+      - "&7This is a view-only menu"
+      - "&7You cannot take items from here"
+  
+  crafting-result:
+    name: "&aCrafting Result"
+  
+  smelting-result:
+    name: "&aSmelting Result"
+  
+  furnace-info:
+    name: "&bFurnace Recipe"
+    lore:
+      - "&7Experience: &f{experience}"
+      - "&7Cooking Time: &f{time}s"
+  
+  fuel:
+    name: "&7Fuel (Any)"
+
+# Update Checker Messages
+update:
+  available: "&aA new version is available: &3{version}"
+  current: "&aYou are running the latest version!"
+  checking: "Checking for updates..."

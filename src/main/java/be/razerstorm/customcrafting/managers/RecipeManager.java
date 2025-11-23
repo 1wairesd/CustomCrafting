@@ -18,242 +18,224 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RecipeManager {
 
     private static RecipeManager instance;
+    private final CustomCrafting plugin = CustomCrafting.getInstance();
 
     public void loadRecipes() {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+
+        // Удаляем старые рецепты плагина перед загрузкой новых
+        clearPluginRecipes();
 
         long initializeTime = System.currentTimeMillis();
         AtomicInteger recipesLoaded = new AtomicInteger();
 
         Objects.requireNonNull(config.getConfigurationSection("recipes")).getKeys(false).forEach(recipeName -> {
-            customCrafting.getLogger().info("Loading recipe " + recipeName);
-            if (config.get("recipes." + recipeName) == null ||
-                    config.get("recipes." + recipeName + ".result") == null ||
-                    config.get("recipes." + recipeName + ".type") == null) {
-                customCrafting.getLogger().warning("Recipe " + recipeName + " is invalid!");
+            plugin.getLogger().info("Loading recipe " + recipeName);
+            String basePath = "recipes." + recipeName;
+            
+            if (config.get(basePath) == null ||
+                    config.get(basePath + ".result") == null ||
+                    config.get(basePath + ".type") == null) {
+                plugin.getLogger().warning("Recipe " + recipeName + " is invalid!");
                 return;
             }
 
-            RecipeType type = RecipeType.valueOf(config.getString("recipes." + recipeName + ".type"));
-            ItemStack output = (ItemStack) config.get("recipes." + recipeName + ".result");
+            RecipeType type = RecipeType.valueOf(config.getString(basePath + ".type"));
+            ItemStack output = (ItemStack) config.get(basePath + ".result");
 
             switch (type) {
                 case CRAFTING: {
-                    if (config.get("recipes." + recipeName + ".ingredients") == null ||
-                            config.get("recipes." + recipeName + ".shape") == null) {
-                        customCrafting.getLogger().warning("Recipe " + recipeName + " is invalid!");
+                    if (config.get(basePath + ".ingredients") == null ||
+                            config.get(basePath + ".shape") == null) {
+                        plugin.getLogger().warning("Recipe " + recipeName + " is invalid!");
                         return;
                     }
 
-                    String[] shape = config.getStringList("recipes." + recipeName + ".shape").toArray(new String[0]);
+                    String[] shape = config.getStringList(basePath + ".shape").toArray(new String[0]);
                     HashMap<Character, ItemStack> ingredients = new HashMap<>();
 
-                    config.getConfigurationSection("recipes." + recipeName + ".ingredients").getKeys(false).forEach(ingredientKey -> {
-                        ingredients.put(ingredientKey.charAt(0), (ItemStack) config.get("recipes." + recipeName + ".ingredients." + ingredientKey));
+                    config.getConfigurationSection(basePath + ".ingredients").getKeys(false).forEach(ingredientKey -> {
+                        ingredients.put(ingredientKey.charAt(0), (ItemStack) config.get(basePath + ".ingredients." + ingredientKey));
                     });
 
-                    pushToServerRecipes(output, ingredients, new NamespacedKey(customCrafting, recipeName), shape);
+                    pushToServerRecipes(output, ingredients, new NamespacedKey(plugin, recipeName), shape);
                     break;
                 }
                 case FURNACE: {
-                    if (config.get("recipes." + recipeName + ".ingredient") == null ||
-                            config.get("recipes." + recipeName + ".experience") == null ||
-                            config.get("recipes." + recipeName + ".cookingTime") == null) {
-                        customCrafting.getLogger().warning("Recipe " + recipeName + " is invalid!");
+                    if (config.get(basePath + ".ingredient") == null ||
+                            config.get(basePath + ".experience") == null ||
+                            config.get(basePath + ".cookingTime") == null) {
+                        plugin.getLogger().warning("Recipe " + recipeName + " is invalid!");
                         return;
                     }
 
-                    ItemStack ingredient = (ItemStack) config.get("recipes." + recipeName + ".ingredient");
-                    int experience = config.getInt("recipes." + recipeName + ".experience");
-                    int cookingTime = config.getInt("recipes." + recipeName + ".cookingTime");
+                    ItemStack ingredient = (ItemStack) config.get(basePath + ".ingredient");
+                    int experience = config.getInt(basePath + ".experience");
+                    int cookingTime = config.getInt(basePath + ".cookingTime");
 
-                    pushToServerRecipes(output, ingredient, new NamespacedKey(customCrafting, recipeName), experience, cookingTime);
+                    pushToServerRecipes(output, ingredient, new NamespacedKey(plugin, recipeName), experience, cookingTime);
                     break;
                 }
             }
             recipesLoaded.getAndIncrement();
         });
 
-        customCrafting.getLogger().info("Loaded " + recipesLoaded.get() + " recipes in " + (System.currentTimeMillis() - initializeTime) + "ms!");
+        plugin.getLogger().info("Loaded " + recipesLoaded.get() + " recipes in " + (System.currentTimeMillis() - initializeTime) + "ms!");
     }
 
     public void addRecipe(String recipeName, ItemStack output, HashMap<Character, ItemStack> ingredients, String... shape) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+        String basePath = "recipes." + recipeName;
 
-        config.set("recipes." + recipeName + ".type", RecipeType.CRAFTING.name());
-        config.set("recipes." + recipeName + ".result", output);
-        config.set("recipes." + recipeName + ".shape", shape);
+        config.set(basePath + ".type", RecipeType.CRAFTING.name());
+        config.set(basePath + ".result", output);
+        config.set(basePath + ".shape", shape);
 
-        ingredients.forEach((identifier, ingredient) -> {
-            config.set("recipes." + recipeName + ".ingredients." + identifier, ingredient);
-        });
+        ingredients.forEach((identifier, ingredient) -> 
+            config.set(basePath + ".ingredients." + identifier, ingredient)
+        );
 
-        customCrafting.saveConfig();
-        CustomCrafting.getInstance().reloadConfig();
-
-        pushToServerRecipes(output, ingredients, new NamespacedKey(customCrafting, recipeName), shape);
+        saveAndReload();
+        pushToServerRecipes(output, ingredients, new NamespacedKey(plugin, recipeName), shape);
     }
 
     public void addRecipe(String recipeName, ItemStack output, ItemStack ingredient, int experience, int cookingTime) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+        String basePath = "recipes." + recipeName;
 
-        config.set("recipes." + recipeName + ".type", RecipeType.FURNACE.name());
-        config.set("recipes." + recipeName + ".result", output);
-        config.set("recipes." + recipeName + ".ingredient", ingredient);
-        config.set("recipes." + recipeName + ".experience", experience);
-        config.set("recipes." + recipeName + ".cookingTime", cookingTime);
+        config.set(basePath + ".type", RecipeType.FURNACE.name());
+        config.set(basePath + ".result", output);
+        config.set(basePath + ".ingredient", ingredient);
+        config.set(basePath + ".experience", experience);
+        config.set(basePath + ".cookingTime", cookingTime);
 
-
-        customCrafting.saveConfig();
-        CustomCrafting.getInstance().reloadConfig();
-
-        pushToServerRecipes(output, ingredient, new NamespacedKey(customCrafting, recipeName), experience, cookingTime);
+        saveAndReload();
+        pushToServerRecipes(output, ingredient, new NamespacedKey(plugin, recipeName), experience, cookingTime);
     }
 
     public void deleteRecipe(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
 
         config.set("recipes." + recipeName, null);
-        customCrafting.saveConfig();
-        CustomCrafting.getInstance().reloadConfig();
+        saveAndReload();
 
-        CustomCrafting.getInstance().getServer().removeRecipe(new NamespacedKey(customCrafting, recipeName));
+        plugin.getServer().removeRecipe(new NamespacedKey(plugin, recipeName));
     }
 
     public void editRecipe(String recipeName, ItemStack output, HashMap<Character, ItemStack> ingredients, String... shape) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+        String basePath = "recipes." + recipeName;
 
-        config.set("recipes." + recipeName, null);
+        config.set(basePath, null);
+        config.set(basePath + ".type", RecipeType.CRAFTING.name());
+        config.set(basePath + ".result", output);
+        config.set(basePath + ".shape", shape);
 
-        config.set("recipes." + recipeName + ".type", RecipeType.CRAFTING.name());
-        config.set("recipes." + recipeName + ".result", output);
-        config.set("recipes." + recipeName + ".shape", shape);
+        ingredients.forEach((identifier, ingredient) -> 
+            config.set(basePath + ".ingredients." + identifier, ingredient)
+        );
 
-        ingredients.forEach((identifier, ingredient) -> {
-            config.set("recipes." + recipeName + ".ingredients." + identifier, ingredient);
-        });
+        saveAndReload();
 
-        customCrafting.saveConfig();
-        CustomCrafting.getInstance().reloadConfig();
-
-        NamespacedKey recipeKey = new NamespacedKey(customCrafting, recipeName);
-
-        customCrafting.getServer().removeRecipe(recipeKey);
+        NamespacedKey recipeKey = new NamespacedKey(plugin, recipeName);
+        plugin.getServer().removeRecipe(recipeKey);
         pushToServerRecipes(output, ingredients, recipeKey, shape);
     }
 
     public void editRecipe(String recipeName, ItemStack output, ItemStack ingredient, int experience, int cookingTime) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+        String basePath = "recipes." + recipeName;
 
-        config.set("recipes." + recipeName, null);
+        config.set(basePath, null);
+        config.set(basePath + ".type", RecipeType.FURNACE.name());
+        config.set(basePath + ".result", output);
+        config.set(basePath + ".ingredient", ingredient);
+        config.set(basePath + ".experience", experience);
+        config.set(basePath + ".cookingTime", cookingTime);
 
-        config.set("recipes." + recipeName + ".type", RecipeType.FURNACE.name());
-        config.set("recipes." + recipeName + ".result", output);
-        config.set("recipes." + recipeName + ".ingredient", ingredient);
-        config.set("recipes." + recipeName + ".experience", experience);
-        config.set("recipes." + recipeName + ".cookingTime", cookingTime);
+        saveAndReload();
 
-        customCrafting.saveConfig();
-        CustomCrafting.getInstance().reloadConfig();
-
-        NamespacedKey recipeKey = new NamespacedKey(customCrafting, recipeName);
-
-        customCrafting.getServer().removeRecipe(recipeKey);
-        pushToServerRecipes(output, ingredient, new NamespacedKey(customCrafting, recipeName), experience, cookingTime);
+        NamespacedKey recipeKey = new NamespacedKey(plugin, recipeName);
+        plugin.getServer().removeRecipe(recipeKey);
+        pushToServerRecipes(output, ingredient, recipeKey, experience, cookingTime);
     }
 
     public int getExperience(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
-        return config.getInt("recipes." + recipeName + ".experience");
+        return plugin.getConfig().getInt("recipes." + recipeName + ".experience");
     }
 
     public int getCookingTime(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
-        return config.getInt("recipes." + recipeName + ".cookingTime");
+        return plugin.getConfig().getInt("recipes." + recipeName + ".cookingTime");
     }
 
     public ItemStack getOutput(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
-        return (ItemStack) config.get("recipes." + recipeName + ".result");
+        return (ItemStack) plugin.getConfig().get("recipes." + recipeName + ".result");
     }
 
     public ItemStack getIngredient(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
-        return (ItemStack) config.get("recipes." + recipeName + ".ingredient");
+        return (ItemStack) plugin.getConfig().get("recipes." + recipeName + ".ingredient");
     }
 
-    public void pushToServerRecipes(ItemStack output, HashMap<Character, ItemStack> ingredients, NamespacedKey recipeKey, String... shape) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
+    private void pushToServerRecipes(ItemStack output, HashMap<Character, ItemStack> ingredients, NamespacedKey recipeKey, String... shape) {
         ShapedRecipe recipe = new ShapedRecipe(recipeKey, output);
         recipe.shape(shape);
 
-        ingredients.forEach((identifier, ingredient) -> {
-            recipe.setIngredient(identifier, new RecipeChoice.ExactChoice(ingredient));
-        });
+        ingredients.forEach((identifier, ingredient) -> 
+            recipe.setIngredient(identifier, new RecipeChoice.ExactChoice(ingredient))
+        );
 
-        customCrafting.getServer().addRecipe(recipe);
-
+        plugin.getServer().addRecipe(recipe);
     }
 
-    public void pushToServerRecipes(ItemStack output, ItemStack ingredient, NamespacedKey recipeKey, int experience, int cookingTime) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-
-        customCrafting.getServer().addRecipe(
-                new FurnaceRecipe(recipeKey,
-                        output,
-                        new RecipeChoice.ExactChoice(ingredient),
-                        experience, cookingTime
-                ));
+    private void pushToServerRecipes(ItemStack output, ItemStack ingredient, NamespacedKey recipeKey, int experience, int cookingTime) {
+        plugin.getServer().addRecipe(
+            new FurnaceRecipe(recipeKey, output, new RecipeChoice.ExactChoice(ingredient), experience, cookingTime)
+        );
     }
 
     public ArrayList<String> getRecipes() {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
+        FileConfiguration config = plugin.getConfig();
         return new ArrayList<>(config.getConfigurationSection("recipes").getKeys(false));
     }
 
     public RecipeInfo getRecipeInfo(String recipeName) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        FileConfiguration config = plugin.getConfig();
+        String basePath = "recipes." + recipeName;
 
-        ItemStack output = (ItemStack) config.get("recipes." + recipeName + ".result");
-        String[] shape = config.getStringList("recipes." + recipeName + ".shape").toArray(new String[0]);
+        ItemStack output = (ItemStack) config.get(basePath + ".result");
+        String[] shape = config.getStringList(basePath + ".shape").toArray(new String[0]);
         HashMap<Character, ItemStack> ingredients = new HashMap<>();
 
-        config.getConfigurationSection("recipes." + recipeName + ".ingredients").getKeys(false).forEach(ingredientKey -> {
-            ingredients.put(ingredientKey.charAt(0), (ItemStack) config.get("recipes." + recipeName + ".ingredients." + ingredientKey));
-        });
+        config.getConfigurationSection(basePath + ".ingredients").getKeys(false).forEach(ingredientKey -> 
+            ingredients.put(ingredientKey.charAt(0), (ItemStack) config.get(basePath + ".ingredients." + ingredientKey))
+        );
 
         return new RecipeInfo(recipeName, output, ingredients, shape);
     }
 
     public boolean recipeExists(String recipe) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
-
-        return config.get("recipes." + recipe) != null;
+        return plugin.getConfig().get("recipes." + recipe) != null;
     }
 
     public RecipeType getType(String recipe) {
-        CustomCrafting customCrafting = CustomCrafting.getInstance();
-        FileConfiguration config = customCrafting.getConfig();
+        return RecipeType.valueOf(plugin.getConfig().getString("recipes." + recipe + ".type"));
+    }
 
-        return RecipeType.valueOf(config.getString("recipes." + recipe + ".type"));
+    private void saveAndReload() {
+        plugin.saveConfig();
+        plugin.reloadConfig();
+    }
+
+    private void clearPluginRecipes() {
+        FileConfiguration config = plugin.getConfig();
+        if (config.getConfigurationSection("recipes") == null) {
+            return;
+        }
+
+        config.getConfigurationSection("recipes").getKeys(false).forEach(recipeName -> {
+            NamespacedKey key = new NamespacedKey(plugin, recipeName);
+            plugin.getServer().removeRecipe(key);
+        });
     }
 
     public static RecipeManager getInstance() {
